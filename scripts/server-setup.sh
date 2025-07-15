@@ -50,6 +50,17 @@ apt update && apt upgrade -y
 log_info "Installing basic dependencies..."
 apt install -y curl wget git ufw fail2ban htop tree vim nano
 
+# Remove existing Node.js installations
+log_info "Removing existing Node.js installations..."
+apt remove -y nodejs npm libnode-dev node-gyp || true
+apt autoremove -y
+
+# Clean up any remaining Node.js files
+rm -rf /usr/lib/node_modules
+rm -rf /usr/include/node
+rm -f /usr/bin/node
+rm -f /usr/bin/npm
+
 # Install Node.js
 log_info "Installing Node.js ${NODE_VERSION}..."
 curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash -
