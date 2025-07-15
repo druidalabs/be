@@ -1,0 +1,112 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+        include:
+          - goos: linux
+            goarch: 386
+          - goos: windows
+            goarch: 386
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+    
+    - name: Build binary
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+      run: |
+        mkdir -p dist
+        BINARY_NAME="be"
+        if [ "$GOOS" = "windows" ]; then
+          BINARY_NAME="be.exe"
+        fi
+        go build -ldflags="-s -w -X 'github.com/druidalabs/be/cmd.version=${{ github.ref_name }}'" -o dist/be-${{ matrix.goos }}-${{ matrix.goarch }}${BINARY_NAME:2} .
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: binaries
+        path: dist/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: binaries
+        path: dist/
+    
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+        body: |
+          ## Bitcoin Efectivo CLI ${{ github.ref_name }}
+          
+          ### Installation
+          
+          **One-liner installation:**
+          ```bash
+          curl -sSL https://bitcoinefectivo.com/install.sh | bash
+          ```
+          
+          **Manual installation:**
+          1. Download the appropriate binary for your platform
+          2. Make it executable: `chmod +x be`
+          3. Move to your PATH: `sudo mv be /usr/local/bin/`
+          
+          ### Usage
+          
+          ```bash
+          be --help
+          be signup
+          be status
+          be send <amount> <address>
+          ```
+          
+          ### What's New
+          
+          - Initial release of Bitcoin Efectivo CLI
+          - Secure token-based authentication
+          - Rate-limited API access
+          - Cross-platform support
+          
+          Visit [bitcoinefectivo.com](https://bitcoinefectivo.com) for more information.
+    
+    - name: Upload Release Assets
+      run: |
+        for file in dist/*; do
+          if [ -f "$file" ]; then
+            filename=$(basename "$file")
+            echo "Uploading $filename..."
+            gh release upload ${{ github.ref_name }} "$file" --clobber
+          fi
+        done
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
