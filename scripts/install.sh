@@ -150,6 +150,18 @@ download_and_install() {
         exit 1
     fi
     
+    # Check if download was successful (not a 404 error page)
+    if [ ! -s "$BINARY_NAME" ] || head -n 1 "$BINARY_NAME" | grep -q "Not Found"; then
+        log_error "Release not found. The binary may not be available yet."
+        log_info "Please check https://github.com/${REPO}/releases for available releases."
+        log_info "Or build from source:"
+        log_info "  git clone https://github.com/${REPO}.git"
+        log_info "  cd be"
+        log_info "  go build -o be ."
+        log_info "  sudo mv be /usr/local/bin/"
+        exit 1
+    fi
+    
     # Make executable
     chmod +x "$BINARY_NAME"
     
